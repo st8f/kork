@@ -18,6 +18,7 @@ package com.netflix.spinnaker.kork.api.expressions;
 
 import com.netflix.spinnaker.kork.annotations.DeprecationInfo;
 import com.netflix.spinnaker.kork.plugins.api.internal.SpinnakerExtensionPoint;
+import java.lang.reflect.Method;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
@@ -100,6 +101,12 @@ public interface ExpressionFunctionProvider extends SpinnakerExtensionPoint {
     /** A list of {@link FunctionParameter}s. */
     private final List<FunctionParameter> parameters;
 
+    /**
+     * Method to call, must be static. Must be set when {@link ExpressionFunctionProvider}
+     * implementation is accessed via Spring (e.g.: plugins).
+     */
+    @Nullable private final Method method;
+
     /** End-user friendly documentation of the function, will be surfaced to the UI via Deck. */
     @Nullable private final FunctionDocumentation documentation;
 
@@ -118,10 +125,7 @@ public interface ExpressionFunctionProvider extends SpinnakerExtensionPoint {
         String description,
         List<FunctionParameter> parameters,
         @Nullable FunctionDocumentation documentation) {
-      this.name = name;
-      this.description = description;
-      this.parameters = parameters;
-      this.documentation = documentation;
+      this(name, description, parameters, null, documentation);
     }
 
     public FunctionDefinition(String name, String description, FunctionParameter... parameters) {
@@ -130,6 +134,19 @@ public interface ExpressionFunctionProvider extends SpinnakerExtensionPoint {
 
     public FunctionDefinition(String name, String description, List<FunctionParameter> parameters) {
       this(name, description, parameters, null);
+    }
+
+    public FunctionDefinition(
+        String name,
+        String description,
+        List<FunctionParameter> parameters,
+        @Nullable Method method,
+        @Nullable FunctionDocumentation documentation) {
+      this.name = name;
+      this.description = description;
+      this.method = method;
+      this.parameters = parameters;
+      this.documentation = documentation;
     }
 
     public String getName() {
@@ -142,6 +159,11 @@ public interface ExpressionFunctionProvider extends SpinnakerExtensionPoint {
 
     public List<FunctionParameter> getParameters() {
       return parameters;
+    }
+
+    @Nullable
+    public Method getMethod() {
+      return this.method;
     }
 
     @Nullable

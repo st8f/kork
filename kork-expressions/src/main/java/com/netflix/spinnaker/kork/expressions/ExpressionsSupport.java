@@ -25,6 +25,7 @@ import com.netflix.spinnaker.kork.expressions.allowlist.FilteredMethodResolver;
 import com.netflix.spinnaker.kork.expressions.allowlist.FilteredPropertyAccessor;
 import com.netflix.spinnaker.kork.expressions.allowlist.MapPropertyAccessor;
 import com.netflix.spinnaker.kork.expressions.allowlist.ReturnTypeRestrictor;
+import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -107,28 +108,6 @@ public class ExpressionsSupport {
     return expressionFunctionProviders;
   }
 
-  private static void registerFunction(
-      StandardEvaluationContext context,
-      String registrationName,
-      Class<?> cls,
-      String methodName,
-      Class<?>... types) {
-    try {
-      context.registerFunction(registrationName, cls.getDeclaredMethod(methodName, types));
-    } catch (NoSuchMethodException e) {
-      LOGGER.error("Failed to register helper function", e);
-      throw new RuntimeException(
-          "Failed to register helper function '"
-              + registrationName
-              + "' from '"
-              + cls.getName()
-              + "#"
-              + methodName
-              + "'",
-          e);
-    }
-  }
-
   /**
    * Creates a configured SpEL evaluation context
    *
@@ -176,12 +155,24 @@ public class ExpressionsSupport {
                 .map(ExpressionFunctionProvider.FunctionParameter::getType)
                 .toArray(Class[]::new);
 
-        registerFunction(
-            evaluationContext,
-            namespacedFunctionName,
-            p.getClass(),
-            function.getName(),
-            functionTypes);
+        try {
+          Method method =
+              function.getMethod() != null
+                  ? function.getMethod()
+                  : p.getClass().getDeclaredMethod(function.getName(), functionTypes);
+          evaluationContext.registerFunction(namespacedFunctionName, method);
+        } catch (NoSuchMethodException e) {
+          LOGGER.error("Failed to register helper function", e);
+          throw new RuntimeException(
+              "Failed to register helper function '"
+                  + namespacedFunctionName
+                  + "' from '"
+                  + p.getClass().getName()
+                  + "#"
+                  + function.getName()
+                  + "'",
+              e);
+        }
       }
     }
   }
